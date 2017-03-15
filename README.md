@@ -21,5 +21,5 @@ Parameter|Type|Description
 ------------|------------|----
 pfx|BLOB|P12 certificate (in)
 password|TEXT|Password (in)
-certificate|TEXT|certificate (out)
+certificate|TEXT|Certificate (out)
 privateKey|TEXT|Private key (out)
