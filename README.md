@@ -22,4 +22,4 @@ Parameter|Type|Description
 pfx|BLOB|P12 certificate (in)
 password|TEXT|Password (in)
 certificate|TEXT|Certificate (out)
-privateKey|TEXT|Private key (out)
+privateKey|TEXT|RSA Private key (out)
