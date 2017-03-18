@@ -40,7 +40,7 @@ certificate|TEXT|Self-signed certificate in PEM format
 publicKey|TEXT|RSA public key in PEM format
 privateKey|TEXT|RSA private key in PEM format
 
-Constants for hash
+Constants for hash:
 
 ```c
 MD5 0
