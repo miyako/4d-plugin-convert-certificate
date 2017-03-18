@@ -30,15 +30,15 @@ MAKE CERTIFICATE (hash;length;days;keys;values;request;certificate;publicKey;pri
 
 Parameter|Type|Description
 ------------|------------|----
-hash|INT32|Algorithm for keys
-length|INT32|Key length
-days|INT32|Certificate duration
-keys|ARRAY TEXT|Keys for certificate request
-values|ARRAY TEXT|Values certificate request
-request|TEXT|Certificate request in PEM format
-certificate|TEXT|Self-signed certificate in PEM format
-publicKey|TEXT|RSA public key in PEM format
-privateKey|TEXT|RSA private key in PEM format
+hash|INT32|Algorithm for keys (in)
+length|INT32|Key length (in)
+days|INT32|Certificate duration (in)
+keys|ARRAY TEXT|Keys for certificate request (in)
+values|ARRAY TEXT|Values certificate request (in)
+request|TEXT|Certificate request in PEM format (out)
+certificate|TEXT|Self-signed certificate in PEM format (out)
+publicKey|TEXT|RSA public key in PEM format (out)
+privateKey|TEXT|RSA private key in PEM format (out)
 
 Constants for hash:
 
