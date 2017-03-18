@@ -40,6 +40,19 @@ certificate|TEXT|Self-signed certificate in PEM format
 publicKey|TEXT|RSA public key in PEM format
 privateKey|TEXT|RSA private key in PEM format
 
+Constants for hash
+
+```c
+MD5 0
+SHA1 1
+SHA224 2
+SHA256 3
+SHA384 4
+SHA512 5
+MDC2 6
+RIPEMD160 7
+```
+
 ### Example
 
 ```
