@@ -23,3 +23,58 @@ pfx|BLOB|P12 certificate (in)
 password|TEXT|Password (in)
 certificate|TEXT|Certificate (out)
 privateKey|TEXT|RSA Private key (out)
+
+```
+MAKE CERTIFICATE (hash;length;days;keys;values;request;certificate;publicKey;privateKey)
+```
+
+Parameter|Type|Description
+------------|------------|----
+hash|INT32|Algorithm for keys
+length|INT32|Key length
+days|INT32|Certificate duration
+keys|ARRAY TEXT|Keys for certificate request
+values|ARRAY TEXT|Values certificate request
+request|TEXT|Certificate request in PEM format
+certificate|TEXT|Self-signed certificate in PEM format
+publicKey|TEXT|RSA public key in PEM format
+privateKey|TEXT|RSA private key in PEM format
+
+### Example
+
+```
+ARRAY TEXT($k;7)
+ARRAY TEXT($v;7)
+
+$k{1}:="C"
+$k{2}:="ST"
+$k{3}:="L"
+$k{4}:="O"
+$k{5}:="O"
+$k{6}:="CN"
+$k{7}:="emailAddress"
+
+$v{1}:="JP"
+$v{2}:="Tokyo"
+$v{3}:="Setagaya"
+$v{4}:="Miyako"
+$v{5}:="Me"
+$v{6}:="127.0.0.1"
+$v{7}:="keisuke.miyako@4d.com"
+
+MAKE CERTIFICATE (SHA256;2048;365;$k;$v;$req;$cert;$pubkey;$privkey)
+
+WEB STOP SERVER
+
+TEXT TO DOCUMENT(Get 4D folder(Database folder)+"req.csr";$req;"us-ascii";Document with CRLF)
+TEXT TO DOCUMENT(Get 4D folder(Database folder)+"cert.pem";$cert;"us-ascii";Document with CRLF)
+TEXT TO DOCUMENT(Get 4D folder(Database folder)+"key.pem";$privkey;"us-ascii";Document with CRLF)
+
+WEB START SERVER
+
+OPEN URL("https://127.0.0.1")
+```
+
+
+
+
