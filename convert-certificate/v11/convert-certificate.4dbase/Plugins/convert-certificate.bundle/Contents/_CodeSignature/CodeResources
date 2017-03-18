@@ -90,7 +90,7 @@
 		</data>
 		<key>Resources/Documentation/index.html</key>
 		<data>
-		3q96Pdm73g3QEKj0V/QORk05WK8=
+		4bPZq0JG6mvhMefekaF/HeVDj/A=
 		</data>
 		<key>Resources/Documentation/styles/common.css</key>
 		<data>
@@ -111,7 +111,7 @@
 		</data>
 		<key>Resources/convert-certificate.rsrc</key>
 		<data>
-		33OBCHP2y1fAI8x2z0DnPn1o1xA=
+		MliECUET10PJ3yQ1ogRyxd7qK44=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -380,11 +380,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			3q96Pdm73g3QEKj0V/QORk05WK8=
+			4bPZq0JG6mvhMefekaF/HeVDj/A=
 			</data>
 			<key>hash2</key>
 			<data>
-			hb85oFcjRPHyiVXC7FuflSxEkZygA0QYEa4mc6vLUw8=
+			AEK1qL6CrtOYYgxgv1p35iuZsCE102AmfO0VPTj87ek=
 			</data>
 		</dict>
 		<key>Resources/Documentation/styles/common.css</key>
@@ -426,33 +426,33 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			33OBCHP2y1fAI8x2z0DnPn1o1xA=
+			MliECUET10PJ3yQ1ogRyxd7qK44=
 			</data>
 			<key>hash2</key>
 			<data>
-			9mT8kp6I/mHJ0CpQxjibSw3sAs3HKfldv2tXsf6uNao=
+			cigxNZnJ3xld0B6mxcu+qMOl65QR6HFRFlg8RxFq8sM=
 			</data>
 		</dict>
 		<key>Windows/convert-certificate.4DX</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			qmi99c1VMDOTvT/WV/RC+H3xAe0=
+			mTcYMi8psbrXzPn6PurSmrIo60w=
 			</data>
 			<key>hash2</key>
 			<data>
-			oMns0jUn8ugaEiNeNx44g3UcEzktqtsC4XfQGMNs6bg=
+			xJ1u0aVYiMu5LizeGiMDl2KSUF9fXwhuFh/6GaGlOnI=
 			</data>
 		</dict>
 		<key>Windows/convert-certificate.RSR</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			QAJ4gsvwRNe4XdfF8G68r5M87Hk=
+			GoTiqLN0VEudKx1Tzm+YlV9GHBs=
 			</data>
 			<key>hash2</key>
 			<data>
-			CTt1TpGKCiQGRT8+8owIlaJNGXv+xQSmvAAxxNZQ58M=
+			p40isguHx/yUgHgmJkL0sY5E5QWhRBzmRTQMspNYCYs=
 			</data>
 		</dict>
 		<key>Windows/convert-certificate.html</key>
@@ -470,22 +470,22 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			4wT/kTg4zGBF2HN6YBnPjOwVO8o=
+			Ce9Hyvg+AJ+Ei4AeH+n9yGyvqmM=
 			</data>
 			<key>hash2</key>
 			<data>
-			Plj+yZvg/b5Fr0vWjBI1zaahjGBW7BLbwdKnxP7V7cw=
+			2uVqTkJd6NUhaKy6xuuBJKg9T4Cy1oaUBt/aGyXh7LQ=
 			</data>
 		</dict>
 		<key>Windows64/convert-certificate.RSR</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			QAJ4gsvwRNe4XdfF8G68r5M87Hk=
+			GoTiqLN0VEudKx1Tzm+YlV9GHBs=
 			</data>
 			<key>hash2</key>
 			<data>
-			CTt1TpGKCiQGRT8+8owIlaJNGXv+xQSmvAAxxNZQ58M=
+			p40isguHx/yUgHgmJkL0sY5E5QWhRBzmRTQMspNYCYs=
 			</data>
 		</dict>
 		<key>Windows64/convert-certificate.html</key>

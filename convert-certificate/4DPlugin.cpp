@@ -12,11 +12,15 @@
 #include "4DPluginAPI.h"
 #include "4DPlugin.h"
 
-void OnStartup(){
-	OpenSSL_add_all_algorithms();//for PEM_From_P12
+void OnStartup()
+{
+	OpenSSL_add_all_algorithms();
+	OpenSSL_add_all_ciphers();
+	OpenSSL_add_all_digests();
 }
 
-bool IsProcessOnExit(){
+bool IsProcessOnExit()
+{
 	C_TEXT name;
 	PA_long32 state, time;
 	PA_GetProcessInfo(PA_GetCurrentProcessNumber(), name, &state, &time);
@@ -25,8 +29,10 @@ bool IsProcessOnExit(){
 	return (!procName.compare(exitProcName));
 }
 
-void OnCloseProcess(){
-	if(IsProcessOnExit()){
+void OnCloseProcess()
+{
+	if(IsProcessOnExit())
+	{
 		EVP_cleanup();
 	}
 }
@@ -44,6 +50,281 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params)
 	catch(...)
 	{
 
+	}
+}
+
+void MAKE_REQ(C_LONGINT &Param1,
+				C_LONGINT &Param2,
+				ARRAY_TEXT &Param4,
+				ARRAY_TEXT &Param5,
+				C_TEXT &Param6,
+				C_TEXT &Param7,
+				C_TEXT &Param8)
+{
+	BIGNUM *bigNum = NULL;
+	RSA *r = NULL;
+	X509_REQ *req = NULL;
+	EVP_PKEY *key = NULL;
+
+	const EVP_MD *evp;
+	
+	switch (Param1.getIntValue())
+	{
+		case ALGO_MD5:
+			evp = EVP_md5();
+			break;
+		case ALGO_SHA1:
+			evp = EVP_sha1();
+			break;
+		case ALGO_SHA224:
+			evp = EVP_sha224();
+			break;
+		case ALGO_SHA256:
+			evp = EVP_sha256();
+			break;
+		case ALGO_SHA384:
+			evp = EVP_sha384();
+			break;
+		case ALGO_SHA512:
+			evp = EVP_sha512();
+			break;
+		case ALGO_MDC2:
+			evp = EVP_mdc2();
+			break;
+		case ALGO_RIPEMD160:
+			evp = EVP_ripemd160();
+			break;
+		default:
+			evp = EVP_sha256();
+			break;
+	}
+	
+	int bits = Param2.getIntValue();
+
+	bigNum = BN_new();
+	if(bigNum)
+	{
+		if(BN_set_word(bigNum, RSA_F4))
+		{
+			r = RSA_new();
+			if(r)
+			{
+				if(RSA_generate_key_ex(r, bits, bigNum, NULL))
+				{
+					req = X509_REQ_new();
+					if(req)
+					{
+						if(X509_REQ_set_version(req, 1))
+						{
+							X509_NAME *name = X509_REQ_get_subject_name(req);
+							if(Param4.getSize() == Param5.getSize())
+							{
+								CUTF8String option;
+								CUTF8String value;
+								for(size_t i = 0;i <Param4.getSize();++i)
+								{
+									Param4.copyUTF8StringAtIndex(&option, i);
+									Param5.copyUTF8StringAtIndex(&value, i);
+									if((option.size()) && (value.size()))
+									{
+										X509_NAME_add_entry_by_txt(name,
+																							 (const char *)option.c_str(),
+																							 MBSTRING_ASC,
+																							 (unsigned char *)value.c_str(),
+																							 value.size(),
+																							 -1,
+																							 0);
+									}
+								}
+							}
+							
+							key = EVP_PKEY_new();
+							if(key)
+							{
+								EVP_PKEY_assign_RSA(key, r);
+								//save pubkey
+								BIO *pubicKeyBio = BIO_new(BIO_s_mem());
+								if(pubicKeyBio)
+								{
+									if(PEM_write_bio_RSAPublicKey(pubicKeyBio, r))
+									//if(PEM_write_bio_PUBKEY(pubicKeyBio, key))
+									{
+										char *buf = NULL;
+										int len = BIO_get_mem_data(pubicKeyBio, &buf);
+										if(len)
+										{
+											CUTF8String pubStr = CUTF8String((const uint8_t *)buf, len);
+											Param7.setUTF8String(&pubStr);
+										}
+									}//PEM_write_bio_RSAPublicKey|PEM_write_bio_PUBKEY
+									
+									BIO_free(pubicKeyBio);
+								}//BIO_new
+								
+								//save privkey
+								BIO *privKeyBio = BIO_new(BIO_s_mem());
+								if(privKeyBio)
+								{
+									if(PEM_write_bio_RSAPrivateKey(privKeyBio, r, NULL, NULL, NULL, NULL, NULL))
+									//if(PEM_write_bio_PKCS8PrivateKey(privKeyBio, key, NULL, NULL, NULL, NULL, NULL))
+									{
+										char *buf = NULL;
+										int len = BIO_get_mem_data(privKeyBio, &buf);
+										if(len)
+										{
+											CUTF8String privStr = CUTF8String((const uint8_t *)buf, len);
+											Param8.setUTF8String(&privStr);
+										}
+									}//PEM_write_bio_RSAPrivateKey|PEM_write_bio_PKCS8PrivateKey
+									BIO_free(privKeyBio);
+								}//privKey
+								
+								r = NULL;
+								
+							}//EVP_PKEY_new
+							
+							//sign the req
+							if(X509_REQ_set_pubkey(req, key))
+							{
+								if(X509_REQ_sign(req, key, evp))
+								{
+									//save the req
+									BIO *requestBio = BIO_new(BIO_s_mem());
+									if(requestBio)
+									{
+										if(PEM_write_bio_X509_REQ(requestBio, req))
+										{
+											char *buf = NULL;
+											int len = BIO_get_mem_data(requestBio, &buf);
+											if(len)
+											{
+												CUTF8String reqStr = CUTF8String((const uint8_t *)buf, len);
+												Param6.setUTF8String(&reqStr);
+											}
+										}//PEM_write_bio_X509_REQ
+										BIO_free(requestBio);
+									}//BIO_new
+								}//X509_REQ_sign
+							}//X509_REQ_set_pubkey
+						}//X509_REQ_set_version
+						X509_REQ_free(req);
+					}//X509_REQ_new
+				}//RSA_generate_key_ex
+				if(r) RSA_free(r);
+			}//RSA_new
+		}//BN_set_word
+		BN_free(bigNum);
+	}//BN_new
+}
+
+void MAKE_CERT(C_LONGINT &Param1,
+							 C_LONGINT &Param3,
+							 C_TEXT &Param6,
+							 C_TEXT &Param7,
+							 C_TEXT &Param8,
+							 C_TEXT &Param9)
+{
+	X509 *cert = NULL;
+	X509_REQ *req = NULL;
+	EVP_PKEY *publicKey = NULL;
+	EVP_PKEY *privKey = NULL;
+	
+	RSA *r = NULL;
+	
+	const EVP_MD *evp;
+	
+	switch (Param1.getIntValue())
+	{
+		case ALGO_MD5:
+			evp = EVP_md5();
+			break;
+		case ALGO_SHA1:
+			evp = EVP_sha1();
+			break;
+		case ALGO_SHA224:
+			evp = EVP_sha224();
+			break;
+		case ALGO_SHA256:
+			evp = EVP_sha256();
+			break;
+		case ALGO_SHA384:
+			evp = EVP_sha384();
+			break;
+		case ALGO_SHA512:
+			evp = EVP_sha512();
+			break;
+		case ALGO_MDC2:
+			evp = EVP_mdc2();
+			break;
+		case ALGO_RIPEMD160:
+			evp = EVP_ripemd160();
+			break;
+		default:
+			evp = EVP_sha256();
+			break;
+	}
+	
+	cert = X509_new();
+	if(cert)
+	{
+		CUTF8String requestStr;
+		Param6.copyUTF8String(&requestStr);
+		BIO *reqBio = BIO_new_mem_buf((void *)requestStr.c_str(), requestStr.size());
+		if(reqBio)
+		{
+			req = PEM_read_bio_X509_REQ(reqBio, NULL, NULL, NULL);
+			if(req)
+			{
+				publicKey = X509_REQ_get_pubkey(req);
+				if(publicKey)
+				{
+					if(X509_REQ_verify(req, publicKey))
+					{
+						X509_set_pubkey(cert, publicKey);
+						
+						X509_set_version(cert, 2);
+						ASN1_INTEGER_set(X509_get_serialNumber(cert), 1);
+						X509_gmtime_adj(X509_get_notBefore(cert), 0);
+						X509_gmtime_adj(X509_get_notAfter(cert), Param3.getIntValue() * 60 * 60 * 24);
+						
+						X509_NAME *name = X509_REQ_get_subject_name(req);
+						X509_set_subject_name(cert, name);
+						X509_set_issuer_name(cert, name);
+						
+						CUTF8String privKeyStr;
+						Param8.copyUTF8String(&privKeyStr);
+						BIO *privKeyBio = BIO_new_mem_buf((void *)privKeyStr.c_str(), privKeyStr.size());
+						if(privKeyBio)
+						{
+							privKey = PEM_read_bio_PrivateKey(privKeyBio, NULL, NULL, NULL);
+							//sign cert
+							if(privKey)
+							{
+								X509_sign(cert, privKey, evp);
+							}
+							//save cert
+							BIO *certBio = BIO_new(BIO_s_mem());
+							if(certBio)
+							{
+								if(PEM_write_bio_X509(certBio, cert))
+								{
+									char *buf = NULL;
+									int len = BIO_get_mem_data(certBio, &buf);
+									if(len)
+									{
+										CUTF8String certStr = CUTF8String((const uint8_t *)buf, len);
+										Param9.setUTF8String(&certStr);
+									}
+								}
+								BIO_free(certBio);
+							}
+						}
+					}
+				}
+			}
+			BIO_free(reqBio);
+		}
+		X509_free(cert);
 	}
 }
 
@@ -65,12 +346,54 @@ void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pPara
 		case 1 :
 			P12_TO_PEM(pResult, pParams);
 			break;
+			
+		case 2 :
+			MAKE_CERTIFICATE(pResult, pParams);
+			break;
 
 	}
 }
 
 // ------------------------------------ Convert -----------------------------------
 
+void MAKE_CERTIFICATE(sLONG_PTR *pResult, PackagePtr pParams)
+{
+	C_LONGINT Param1;
+	C_LONGINT Param2;
+	C_LONGINT Param3;
+	ARRAY_TEXT Param4;
+	ARRAY_TEXT Param5;
+	C_TEXT Param6;
+	C_TEXT Param7;
+	C_TEXT Param8;
+	C_TEXT Param9;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	Param2.fromParamAtIndex(pParams, 2);
+	Param3.fromParamAtIndex(pParams, 3);
+	Param4.fromParamAtIndex(pParams, 4);
+	Param5.fromParamAtIndex(pParams, 5);
+	
+	MAKE_REQ(Param1,
+					 Param2,
+					 Param4,
+					 Param5,
+					 Param6,//req
+					 Param8,//pubKey
+					 Param9);//privKey
+	
+	MAKE_CERT(Param1,
+						Param3,
+						Param6,//req
+						Param8,//pubKey
+						Param9,//privKey
+						Param7);//cert
+	
+	Param6.toParamAtIndex(pParams, 6);
+	Param7.toParamAtIndex(pParams, 7);
+	Param8.toParamAtIndex(pParams, 8);
+	Param9.toParamAtIndex(pParams, 9);
+}
 
 void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams)
 {

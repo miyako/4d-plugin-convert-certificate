@@ -1,1 +1,1 @@
-﻿{"name":"convert-certificate","id":20000,"commands":[{"theme":"Convert","syntax":"P12 TO PEM(&O;&T;&T;&T)"}]}
+﻿{"name":"convert-certificate","id":20000,"commands":[{"theme":"Convert","syntax":"P12 TO PEM(&O;&T;&T;&T)"},{"theme":"Convert","syntax":"MAKE CERTIFICATE(&L;&L;&L;&Y;&Y;&T;&T;&T;&T)"}]}
