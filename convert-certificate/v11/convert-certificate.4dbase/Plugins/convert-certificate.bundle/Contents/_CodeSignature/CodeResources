@@ -100,7 +100,7 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			/LneGsqz9pz4F3p+o5ACxF3qu2w=
+			BGnMyXS0xRafJKW4LwpKWTgxRxo=
 			</data>
 			<key>optional</key>
 			<true/>
@@ -116,24 +116,6 @@
 	</dict>
 	<key>files2</key>
 	<dict>
-		<key>MacOS/convert-certificate.html</key>
-		<dict>
-			<key>cdhash</key>
-			<data>
-			DRvi4y86I+UrLrPUgslPHJkzWNk=
-			</data>
-			<key>requirement</key>
-			<string>identifier "convert-certificate" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = Y69CWUC25B</string>
-		</dict>
-		<key>MacOS/libcrypto.1.0.0.dylib</key>
-		<dict>
-			<key>cdhash</key>
-			<data>
-			SQJzCW1kn2S8lPiG/f190ZuWzIc=
-			</data>
-			<key>requirement</key>
-			<string>identifier "libcrypto.1" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = Y69CWUC25B</string>
-		</dict>
 		<key>QuickLook/Thumbnail.png</key>
 		<dict>
 			<key>hash</key>
@@ -402,11 +384,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			/LneGsqz9pz4F3p+o5ACxF3qu2w=
+			BGnMyXS0xRafJKW4LwpKWTgxRxo=
 			</data>
 			<key>hash2</key>
 			<data>
-			tnWX8NcKjGoOwHHjTVnSVDTMSYeTvD2dKBAP91jaLtE=
+			VylCRYHVUOgPL6QrmB8W5gRJi11FKpTJOhFfKyJh+QA=
 			</data>
 			<key>optional</key>
 			<true/>
@@ -455,17 +437,6 @@
 			p40isguHx/yUgHgmJkL0sY5E5QWhRBzmRTQMspNYCYs=
 			</data>
 		</dict>
-		<key>Windows/convert-certificate.html</key>
-		<dict>
-			<key>hash</key>
-			<data>
-			3f3hE90+GMuzyHmK9RVQvLK+Zs8=
-			</data>
-			<key>hash2</key>
-			<data>
-			EKLRdLPtg+PsdxOrCPdnhlHZLbWCJYLapu/sbQTYgHg=
-			</data>
-		</dict>
 		<key>Windows64/convert-certificate.4DX</key>
 		<dict>
 			<key>hash</key>
@@ -486,17 +457,6 @@
 			<key>hash2</key>
 			<data>
 			p40isguHx/yUgHgmJkL0sY5E5QWhRBzmRTQMspNYCYs=
-			</data>
-		</dict>
-		<key>Windows64/convert-certificate.html</key>
-		<dict>
-			<key>hash</key>
-			<data>
-			3f3hE90+GMuzyHmK9RVQvLK+Zs8=
-			</data>
-			<key>hash2</key>
-			<data>
-			EKLRdLPtg+PsdxOrCPdnhlHZLbWCJYLapu/sbQTYgHg=
 			</data>
 		</dict>
 	</dict>
