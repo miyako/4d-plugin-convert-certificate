@@ -7,3 +7,7 @@ build/
 /convert-certificate.zip
 convert-certificate.4dbase/Plugins/convert-certificate.bundle/Contents/MacOS/
 convert-certificate.4dbase/Plugins/convert-certificate.bundle/Contents/_CodeSignature/
+# OpenSSL, built by scripts/build-macos-deps.sh / build-windows-deps.cmd
+/a/libcrypto.a
+/include/openssl/
+/lib/64/libcrypto.lib

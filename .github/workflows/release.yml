@@ -80,6 +80,39 @@ jobs:
       - name: setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      # OpenSSL (static libcrypto) is built from the pinned release tarball:
+      # scripts/build-windows-deps.cmd -> lib/64/libcrypto.lib + include/openssl.
+      # Saved right away, so a later failure does not throw the build away;
+      # editing the script (version, options) changes the key.
+      - name: restore OpenSSL
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            lib/64/libcrypto.lib
+            include/openssl
+          key: windows-openssl-${{ hashFiles('scripts/build-windows-deps.cmd') }}
+
+      - name: build OpenSSL (cache miss)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: cmd
+        run: call scripts\build-windows-deps.cmd
+
+      - name: save OpenSSL
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            lib/64/libcrypto.lib
+            include/openssl
+          key: windows-openssl-${{ hashFiles('scripts/build-windows-deps.cmd') }}
+
+      - name: check OpenSSL
+        shell: pwsh
+        run: |
+          if (-not (Test-Path lib/64/libcrypto.lib)) { Write-Error "lib/64/libcrypto.lib is missing"; exit 1 }
+          Select-String -Path include/openssl/opensslv.h -Pattern 'OPENSSL_VERSION_TEXT'
+
       - name: clean stale outputs
         shell: pwsh
         run: |
@@ -146,6 +179,32 @@ jobs:
         with:
           ref: ${{ needs.version.outputs.tag }}
 
+      # OpenSSL (static libcrypto) is built from the pinned release tarball:
+      # scripts/build-macos-deps.sh -> universal a/libcrypto.a + include/openssl.
+      # Saved right away, before signing, so a later failure does not throw
+      # the build away; editing the script (version, options) changes the key.
+      - name: restore OpenSSL
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            a/libcrypto.a
+            include/openssl
+          key: macos-openssl-${{ hashFiles('scripts/build-macos-deps.sh') }}
+
+      - name: build OpenSSL (cache miss)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: scripts/build-macos-deps.sh
+
+      - name: save OpenSSL
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            a/libcrypto.a
+            include/openssl
+          key: macos-openssl-${{ hashFiles('scripts/build-macos-deps.sh') }}
+
       - name: check prebuilt libraries
         run: |
           set -euo pipefail
@@ -173,6 +232,7 @@ jobs:
           echo "a/libcrypto.a: $ARCHS_FOUND"
           echo "$ARCHS_FOUND" | grep -qw arm64 || { echo "::error::a/libcrypto.a has no arm64 slice"; exit 1; }
           echo "$ARCHS_FOUND" | grep -qw x86_64 || { echo "::error::a/libcrypto.a has no x86_64 slice"; exit 1; }
+          grep 'OPENSSL_VERSION_TEXT' include/openssl/opensslv.h
 
       - name: download windows binaries
         uses: actions/download-artifact@v4
