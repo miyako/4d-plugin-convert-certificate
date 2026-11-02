@@ -101,6 +101,12 @@ void MAKE_REQ(C_LONGINT &Param1,
 	
 	int bits = Param2.getIntValue();
 
+	// a 4D-supplied key length goes straight into RSA key generation, whose
+	// cost grows steeply with the size: an oversized value would keep the
+	// calling process busy for minutes or hours. OpenSSL does not support
+	// RSA moduli above OPENSSL_RSA_MAX_MODULUS_BITS (16384) anyway.
+	if(bits > OPENSSL_RSA_MAX_MODULUS_BITS) return;
+
 	bigNum = BN_new();
 	if(bigNum)
 	{
@@ -139,9 +145,9 @@ void MAKE_REQ(C_LONGINT &Param1,
 							}
 							
 							key = EVP_PKEY_new();
-							if(key)
+							// on success the key owns r (freed by EVP_PKEY_free below)
+							if(key && EVP_PKEY_assign_RSA(key, r))
 							{
-								EVP_PKEY_assign_RSA(key, r);
 								//save pubkey
 								BIO *pubicKeyBio = BIO_new(BIO_s_mem());
 								if(pubicKeyBio)
@@ -184,7 +190,7 @@ void MAKE_REQ(C_LONGINT &Param1,
 							}//EVP_PKEY_new
 							
 							//sign the req
-							if(X509_REQ_set_pubkey(req, key))
+							if(key && (r == NULL) && X509_REQ_set_pubkey(req, key))
 							{
 								if(X509_REQ_sign(req, key, evp))
 								{
@@ -210,6 +216,7 @@ void MAKE_REQ(C_LONGINT &Param1,
 						X509_REQ_free(req);
 					}//X509_REQ_new
 				}//RSA_generate_key_ex
+				if(key) EVP_PKEY_free(key);//also frees r once assigned
 				if(r) RSA_free(r);
 			}//RSA_new
 		}//BN_set_word
@@ -278,14 +285,15 @@ void MAKE_CERT(C_LONGINT &Param1,
 				publicKey = X509_REQ_get_pubkey(req);
 				if(publicKey)
 				{
-					if(X509_REQ_verify(req, publicKey))
+					if(X509_REQ_verify(req, publicKey) == 1)//-1 means error, not success
 					{
 						X509_set_pubkey(cert, publicKey);
 						
 						X509_set_version(cert, 2);
 						ASN1_INTEGER_set(X509_get_serialNumber(cert), 1);
-						X509_gmtime_adj(X509_get_notBefore(cert), 0);
-						X509_gmtime_adj(X509_get_notAfter(cert), Param3.getIntValue() * 60 * 60 * 24);
+						//pass the days as days: days * 86400 overflows int above ~24855 days
+						bool validity = (X509_gmtime_adj(X509_get_notBefore(cert), 0) != NULL)
+						&& (X509_time_adj_ex(X509_get_notAfter(cert), (int)Param3.getIntValue(), 0, NULL) != NULL);
 						
 						X509_NAME *name = X509_REQ_get_subject_name(req);
 						X509_set_subject_name(cert, name);
@@ -297,13 +305,16 @@ void MAKE_CERT(C_LONGINT &Param1,
 						if(privKeyBio)
 						{
 							privKey = PEM_read_bio_PrivateKey(privKeyBio, NULL, NULL, NULL);
-							//sign cert
+							//sign cert; don't return an unsigned certificate
+							int signedLength = 0;
 							if(privKey)
 							{
-								X509_sign(cert, privKey, evp);
+								if(validity) signedLength = X509_sign(cert, privKey, evp);
+								EVP_PKEY_free(privKey);
 							}
+							BIO_free(privKeyBio);
 							//save cert
-							BIO *certBio = BIO_new(BIO_s_mem());
+							BIO *certBio = (signedLength > 0) ? BIO_new(BIO_s_mem()) : NULL;
 							if(certBio)
 							{
 								if(PEM_write_bio_X509(certBio, cert))
@@ -320,7 +331,9 @@ void MAKE_CERT(C_LONGINT &Param1,
 							}
 						}
 					}
+					EVP_PKEY_free(publicKey);//X509_REQ_get_pubkey returns a new reference
 				}
+				X509_REQ_free(req);
 			}
 			BIO_free(reqBio);
 		}
@@ -418,7 +431,8 @@ void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams)
 			Param2.copyUTF8String(&pass);
 			if(PKCS12_parse(p12, (const char *)pass.c_str(), &key, &cert, &ca))
 			{
-				BIO *x509 = BIO_new(BIO_s_mem());
+				//a PKCS#12 file may hold no certificate or no key
+				BIO *x509 = cert ? BIO_new(BIO_s_mem()) : NULL;
 				if(x509)
 				{
 					if(PEM_write_bio_X509(x509, cert))
@@ -433,10 +447,12 @@ void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams)
 					}
 					BIO_free(x509);
 				}
-				BIO *pem = BIO_new(BIO_s_mem());
+				//get1 returns a new reference; NULL if there is no key or it is not RSA
+				RSA *rsa = key ? EVP_PKEY_get1_RSA(key) : NULL;
+				BIO *pem = rsa ? BIO_new(BIO_s_mem()) : NULL;
 				if(pem)
 				{
-					if(PEM_write_bio_RSAPrivateKey(pem, EVP_PKEY_get1_RSA(key), NULL, NULL, NULL, NULL, (void *)pass.c_str()))
+					if(PEM_write_bio_RSAPrivateKey(pem, rsa, NULL, NULL, NULL, NULL, (void *)pass.c_str()))
 					{
 						char *buf = NULL;
 						int len = BIO_get_mem_data(pem, &buf);
@@ -448,7 +464,15 @@ void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams)
 					}
 					BIO_free(pem);
 				}
+				if(rsa) RSA_free(rsa);
+				//on success the caller owns key and cert. (on failure OpenSSL
+				//frees them itself; older versions without resetting the
+				//pointers, so they are deliberately not touched here)
+				if(key) EVP_PKEY_free(key);
+				if(cert) X509_free(cert);
 			}
+			if(ca) sk_X509_pop_free(ca, X509_free);
+			PKCS12_free(p12);
 		}
 		BIO_free(bio);
 	}//bio
