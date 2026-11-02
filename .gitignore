@@ -1,0 +1,9 @@
+.DS_Store
+build/
+.vs/
+*.4dbase/Logs/
+*.4dbase/userPreferences.*/
+/convert-certificate.dmg
+/convert-certificate.zip
+convert-certificate.4dbase/Plugins/convert-certificate.bundle/Contents/MacOS/
+convert-certificate.4dbase/Plugins/convert-certificate.bundle/Contents/_CodeSignature/
