@@ -8,33 +8,8 @@
  #
  # --------------------------------------------------------------------------------*/
 
-#include "openssl/ssl.h"
-#include "openssl/bio.h"
-#include "openssl/evp.h"
-#include "openssl/buffer.h"
-#include "openssl/hmac.h"
-#include "openssl/pkcs12.h"
-#include "openssl/err.h"
-#include "openssl/sha.h"
+#include "certificate_core.h"
 
 // --- Convert
 void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams);
 void MAKE_CERTIFICATE(sLONG_PTR *pResult, PackagePtr pParams);
-
-#define ALGO_MD5 0
-#define ALGO_SHA1 1
-#define ALGO_SHA224 2
-#define ALGO_SHA256 3
-#define ALGO_SHA384 4
-#define ALGO_SHA512 5
-#define ALGO_MDC2 6
-#define ALGO_RIPEMD160 7
-
-#ifdef VERSIONWIN
-FILE _iob[] = { *stdin, *stdout, *stderr };
-
-extern "C" FILE * __cdecl __iob_func(void)
-{
-	return _iob;
-}
-#endif

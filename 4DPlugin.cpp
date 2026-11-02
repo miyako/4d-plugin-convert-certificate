@@ -14,27 +14,7 @@
 
 void OnStartup()
 {
-	OpenSSL_add_all_algorithms();
-	OpenSSL_add_all_ciphers();
-	OpenSSL_add_all_digests();
-}
-
-bool IsProcessOnExit()
-{
-	C_TEXT name;
-	PA_long32 state, time;
-	PA_GetProcessInfo(PA_GetCurrentProcessNumber(), name, &state, &time);
-	CUTF16String procName(name.getUTF16StringPtr());
-	CUTF16String exitProcName((PA_Unichar *)"$\0x\0x\0\0\0");
-	return (!procName.compare(exitProcName));
-}
-
-void OnCloseProcess()
-{
-	if(IsProcessOnExit())
-	{
-		EVP_cleanup();
-	}
+	cert_load_providers();
 }
 
 void PluginMain(PA_long32 selector, PA_PluginParameters params)
@@ -53,294 +33,6 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params)
 	}
 }
 
-void MAKE_REQ(C_LONGINT &Param1,
-				C_LONGINT &Param2,
-				ARRAY_TEXT &Param4,
-				ARRAY_TEXT &Param5,
-				C_TEXT &Param6,
-				C_TEXT &Param7,
-				C_TEXT &Param8)
-{
-	BIGNUM *bigNum = NULL;
-	RSA *r = NULL;
-	X509_REQ *req = NULL;
-	EVP_PKEY *key = NULL;
-
-	const EVP_MD *evp;
-	
-	switch (Param1.getIntValue())
-	{
-		case ALGO_MD5:
-			evp = EVP_md5();
-			break;
-		case ALGO_SHA1:
-			evp = EVP_sha1();
-			break;
-		case ALGO_SHA224:
-			evp = EVP_sha224();
-			break;
-		case ALGO_SHA256:
-			evp = EVP_sha256();
-			break;
-		case ALGO_SHA384:
-			evp = EVP_sha384();
-			break;
-		case ALGO_SHA512:
-			evp = EVP_sha512();
-			break;
-		case ALGO_MDC2:
-			evp = EVP_mdc2();
-			break;
-		case ALGO_RIPEMD160:
-			evp = EVP_ripemd160();
-			break;
-		default:
-			evp = EVP_sha256();
-			break;
-	}
-	
-	int bits = Param2.getIntValue();
-
-	// a 4D-supplied key length goes straight into RSA key generation, whose
-	// cost grows steeply with the size: an oversized value would keep the
-	// calling process busy for minutes or hours. OpenSSL does not support
-	// RSA moduli above OPENSSL_RSA_MAX_MODULUS_BITS (16384) anyway.
-	if(bits > OPENSSL_RSA_MAX_MODULUS_BITS) return;
-
-	bigNum = BN_new();
-	if(bigNum)
-	{
-		if(BN_set_word(bigNum, RSA_F4))
-		{
-			r = RSA_new();
-			if(r)
-			{
-				if(RSA_generate_key_ex(r, bits, bigNum, NULL))
-				{
-					req = X509_REQ_new();
-					if(req)
-					{
-						if(X509_REQ_set_version(req, 1))
-						{
-							X509_NAME *name = X509_REQ_get_subject_name(req);
-							if(Param4.getSize() == Param5.getSize())
-							{
-								CUTF8String option;
-								CUTF8String value;
-								for(size_t i = 0;i <Param4.getSize();++i)
-								{
-									Param4.copyUTF8StringAtIndex(&option, i);
-									Param5.copyUTF8StringAtIndex(&value, i);
-									if((option.size()) && (value.size()))
-									{
-										X509_NAME_add_entry_by_txt(name,
-																							 (const char *)option.c_str(),
-																							 MBSTRING_ASC,
-																							 (unsigned char *)value.c_str(),
-																							 value.size(),
-																							 -1,
-																							 0);
-									}
-								}
-							}
-							
-							key = EVP_PKEY_new();
-							// on success the key owns r (freed by EVP_PKEY_free below)
-							if(key && EVP_PKEY_assign_RSA(key, r))
-							{
-								//save pubkey
-								BIO *pubicKeyBio = BIO_new(BIO_s_mem());
-								if(pubicKeyBio)
-								{
-									if(PEM_write_bio_RSAPublicKey(pubicKeyBio, r))
-									//if(PEM_write_bio_PUBKEY(pubicKeyBio, key))
-									{
-										char *buf = NULL;
-										int len = BIO_get_mem_data(pubicKeyBio, &buf);
-										if(len)
-										{
-											CUTF8String pubStr = CUTF8String((const uint8_t *)buf, len);
-											Param7.setUTF8String(&pubStr);
-										}
-									}//PEM_write_bio_RSAPublicKey|PEM_write_bio_PUBKEY
-									
-									BIO_free(pubicKeyBio);
-								}//BIO_new
-								
-								//save privkey
-								BIO *privKeyBio = BIO_new(BIO_s_mem());
-								if(privKeyBio)
-								{
-									if(PEM_write_bio_RSAPrivateKey(privKeyBio, r, NULL, NULL, NULL, NULL, NULL))
-									//if(PEM_write_bio_PKCS8PrivateKey(privKeyBio, key, NULL, NULL, NULL, NULL, NULL))
-									{
-										char *buf = NULL;
-										int len = BIO_get_mem_data(privKeyBio, &buf);
-										if(len)
-										{
-											CUTF8String privStr = CUTF8String((const uint8_t *)buf, len);
-											Param8.setUTF8String(&privStr);
-										}
-									}//PEM_write_bio_RSAPrivateKey|PEM_write_bio_PKCS8PrivateKey
-									BIO_free(privKeyBio);
-								}//privKey
-								
-								r = NULL;
-								
-							}//EVP_PKEY_new
-							
-							//sign the req
-							if(key && (r == NULL) && X509_REQ_set_pubkey(req, key))
-							{
-								if(X509_REQ_sign(req, key, evp))
-								{
-									//save the req
-									BIO *requestBio = BIO_new(BIO_s_mem());
-									if(requestBio)
-									{
-										if(PEM_write_bio_X509_REQ(requestBio, req))
-										{
-											char *buf = NULL;
-											int len = BIO_get_mem_data(requestBio, &buf);
-											if(len)
-											{
-												CUTF8String reqStr = CUTF8String((const uint8_t *)buf, len);
-												Param6.setUTF8String(&reqStr);
-											}
-										}//PEM_write_bio_X509_REQ
-										BIO_free(requestBio);
-									}//BIO_new
-								}//X509_REQ_sign
-							}//X509_REQ_set_pubkey
-						}//X509_REQ_set_version
-						X509_REQ_free(req);
-					}//X509_REQ_new
-				}//RSA_generate_key_ex
-				if(key) EVP_PKEY_free(key);//also frees r once assigned
-				if(r) RSA_free(r);
-			}//RSA_new
-		}//BN_set_word
-		BN_free(bigNum);
-	}//BN_new
-}
-
-void MAKE_CERT(C_LONGINT &Param1,
-							 C_LONGINT &Param3,
-							 C_TEXT &Param6,
-							 C_TEXT &Param7,
-							 C_TEXT &Param8,
-							 C_TEXT &Param9)
-{
-	X509 *cert = NULL;
-	X509_REQ *req = NULL;
-	EVP_PKEY *publicKey = NULL;
-	EVP_PKEY *privKey = NULL;
-	
-	RSA *r = NULL;
-	
-	const EVP_MD *evp;
-	
-	switch (Param1.getIntValue())
-	{
-		case ALGO_MD5:
-			evp = EVP_md5();
-			break;
-		case ALGO_SHA1:
-			evp = EVP_sha1();
-			break;
-		case ALGO_SHA224:
-			evp = EVP_sha224();
-			break;
-		case ALGO_SHA256:
-			evp = EVP_sha256();
-			break;
-		case ALGO_SHA384:
-			evp = EVP_sha384();
-			break;
-		case ALGO_SHA512:
-			evp = EVP_sha512();
-			break;
-		case ALGO_MDC2:
-			evp = EVP_mdc2();
-			break;
-		case ALGO_RIPEMD160:
-			evp = EVP_ripemd160();
-			break;
-		default:
-			evp = EVP_sha256();
-			break;
-	}
-	
-	cert = X509_new();
-	if(cert)
-	{
-		CUTF8String requestStr;
-		Param6.copyUTF8String(&requestStr);
-		BIO *reqBio = BIO_new_mem_buf((void *)requestStr.c_str(), requestStr.size());
-		if(reqBio)
-		{
-			req = PEM_read_bio_X509_REQ(reqBio, NULL, NULL, NULL);
-			if(req)
-			{
-				publicKey = X509_REQ_get_pubkey(req);
-				if(publicKey)
-				{
-					if(X509_REQ_verify(req, publicKey) == 1)//-1 means error, not success
-					{
-						X509_set_pubkey(cert, publicKey);
-						
-						X509_set_version(cert, 2);
-						ASN1_INTEGER_set(X509_get_serialNumber(cert), 1);
-						//pass the days as days: days * 86400 overflows int above ~24855 days
-						bool validity = (X509_gmtime_adj(X509_get_notBefore(cert), 0) != NULL)
-						&& (X509_time_adj_ex(X509_get_notAfter(cert), (int)Param3.getIntValue(), 0, NULL) != NULL);
-						
-						X509_NAME *name = X509_REQ_get_subject_name(req);
-						X509_set_subject_name(cert, name);
-						X509_set_issuer_name(cert, name);
-						
-						CUTF8String privKeyStr;
-						Param8.copyUTF8String(&privKeyStr);
-						BIO *privKeyBio = BIO_new_mem_buf((void *)privKeyStr.c_str(), privKeyStr.size());
-						if(privKeyBio)
-						{
-							privKey = PEM_read_bio_PrivateKey(privKeyBio, NULL, NULL, NULL);
-							//sign cert; don't return an unsigned certificate
-							int signedLength = 0;
-							if(privKey)
-							{
-								if(validity) signedLength = X509_sign(cert, privKey, evp);
-								EVP_PKEY_free(privKey);
-							}
-							BIO_free(privKeyBio);
-							//save cert
-							BIO *certBio = (signedLength > 0) ? BIO_new(BIO_s_mem()) : NULL;
-							if(certBio)
-							{
-								if(PEM_write_bio_X509(certBio, cert))
-								{
-									char *buf = NULL;
-									int len = BIO_get_mem_data(certBio, &buf);
-									if(len)
-									{
-										CUTF8String certStr = CUTF8String((const uint8_t *)buf, len);
-										Param9.setUTF8String(&certStr);
-									}
-								}
-								BIO_free(certBio);
-							}
-						}
-					}
-					EVP_PKEY_free(publicKey);//X509_REQ_get_pubkey returns a new reference
-				}
-				X509_REQ_free(req);
-			}
-			BIO_free(reqBio);
-		}
-		X509_free(cert);
-	}
-}
-
 void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pParams)
 {
 	switch(pProcNum)
@@ -348,10 +40,6 @@ void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pPara
 		case kInitPlugin :
 		case kServerInitPlugin :
 			OnStartup();
-			break;
-
-		case kCloseProcess :
-			OnCloseProcess();
 			break;
 			
 // --- Convert
@@ -368,6 +56,15 @@ void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pPara
 }
 
 // ------------------------------------ Convert -----------------------------------
+
+static void setTextFromString(C_TEXT &text, const std::string &str)
+{
+	if(str.size())
+	{
+		CUTF8String u8((const uint8_t *)str.data(), str.size());
+		text.setUTF8String(&u8);
+	}
+}
 
 void MAKE_CERTIFICATE(sLONG_PTR *pResult, PackagePtr pParams)
 {
@@ -387,20 +84,34 @@ void MAKE_CERTIFICATE(sLONG_PTR *pResult, PackagePtr pParams)
 	Param4.fromParamAtIndex(pParams, 4);
 	Param5.fromParamAtIndex(pParams, 5);
 	
-	MAKE_REQ(Param1,
-					 Param2,
-					 Param4,
-					 Param5,
-					 Param6,//req
-					 Param8,//pubKey
-					 Param9);//privKey
+	int algo = (int)Param1.getIntValue();
 	
-	MAKE_CERT(Param1,
-						Param3,
-						Param6,//req
-						Param8,//pubKey
-						Param9,//privKey
-						Param7);//cert
+	//arrays of different sizes: the subject is left empty (as before)
+	cert_subject_t subject;
+	if(Param4.getSize() == Param5.getSize())
+	{
+		CUTF8String field;
+		CUTF8String value;
+		for(size_t i = 0; i < Param4.getSize(); ++i)
+		{
+			Param4.copyUTF8StringAtIndex(&field, i);
+			Param5.copyUTF8StringAtIndex(&value, i);
+			subject.push_back(std::make_pair(std::string((const char *)field.data(), field.size()),
+																			 std::string((const char *)value.data(), value.size())));
+		}
+	}
+	
+	std::string request, publicKey, privateKey, certificate;
+	
+	if(cert_make_request(algo, (int)Param2.getIntValue(), subject, request, publicKey, privateKey))
+	{
+		cert_make_certificate(algo, (int)Param3.getIntValue(), request, privateKey, certificate);
+	}
+	
+	setTextFromString(Param6, request);
+	setTextFromString(Param7, certificate);
+	setTextFromString(Param8, publicKey);
+	setTextFromString(Param9, privateKey);
 	
 	Param6.toParamAtIndex(pParams, 6);
 	Param7.toParamAtIndex(pParams, 7);
@@ -417,67 +128,21 @@ void P12_TO_PEM(sLONG_PTR *pResult, PackagePtr pParams)
 
 	Param1.fromParamAtIndex(pParams, 1);
 	Param2.fromParamAtIndex(pParams, 2);
-
-	BIO *bio = BIO_new_mem_buf((void *)Param1.getBytesPtr(), Param1.getBytesLength());
-	if(bio)
-	{
-		PKCS12 *p12 = d2i_PKCS12_bio(bio, NULL);
-		if(p12)
-		{
-			EVP_PKEY *key = NULL;
-			X509 *cert = NULL;
-			STACK_OF(X509) *ca = NULL;
-			CUTF8String pass;
-			Param2.copyUTF8String(&pass);
-			if(PKCS12_parse(p12, (const char *)pass.c_str(), &key, &cert, &ca))
-			{
-				//a PKCS#12 file may hold no certificate or no key
-				BIO *x509 = cert ? BIO_new(BIO_s_mem()) : NULL;
-				if(x509)
-				{
-					if(PEM_write_bio_X509(x509, cert))
-					{
-						char *buf = NULL;
-						int len = BIO_get_mem_data(x509, &buf);
-						if(len)
-						{
-							CUTF8String x509Str = CUTF8String((const uint8_t *)buf, len);
-							Param3.setUTF8String(&x509Str);
-						}
-					}
-					BIO_free(x509);
-				}
-				//get1 returns a new reference; NULL if there is no key or it is not RSA
-				RSA *rsa = key ? EVP_PKEY_get1_RSA(key) : NULL;
-				BIO *pem = rsa ? BIO_new(BIO_s_mem()) : NULL;
-				if(pem)
-				{
-					if(PEM_write_bio_RSAPrivateKey(pem, rsa, NULL, NULL, NULL, NULL, (void *)pass.c_str()))
-					{
-						char *buf = NULL;
-						int len = BIO_get_mem_data(pem, &buf);
-						if(len)
-						{
-							CUTF8String pemStr = CUTF8String((const uint8_t *)buf, len);
-							Param4.setUTF8String(&pemStr);
-						}
-					}
-					BIO_free(pem);
-				}
-				if(rsa) RSA_free(rsa);
-				//on success the caller owns key and cert. (on failure OpenSSL
-				//frees them itself; older versions without resetting the
-				//pointers, so they are deliberately not touched here)
-				if(key) EVP_PKEY_free(key);
-				if(cert) X509_free(cert);
-			}
-			if(ca) sk_X509_pop_free(ca, X509_free);
-			PKCS12_free(p12);
-		}
-		BIO_free(bio);
-	}//bio
+	
+	CUTF8String pass;
+	Param2.copyUTF8String(&pass);
+	
+	std::string certificate, privateKey;
+	
+	cert_p12_to_pem(Param1.getBytesPtr(),
+									Param1.getBytesLength(),
+									std::string((const char *)pass.data(), pass.size()),
+									certificate,
+									privateKey);
+	
+	setTextFromString(Param3, certificate);
+	setTextFromString(Param4, privateKey);
 	
 	Param3.toParamAtIndex(pParams, 3);
 	Param4.toParamAtIndex(pParams, 4);
 }
-
