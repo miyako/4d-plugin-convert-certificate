@@ -13,7 +13,7 @@ Convert P12 (PFX, PKCS#12) format certificate to PEM
 
 ### Releases
 
-[Releases](https://github.com/miyako/4d-plugin-convert-certificate/releases): `2.0.0` is the latest published build. New releases are tagged `vX.Y.Z`.
+[Releases](https://github.com/miyako/4d-plugin-convert-certificate/releases): `v2.1.0` is the latest release: universal (`arm64` + `x86_64`), signed and notarized, built with OpenSSL 3.5.9. Older releases (`2.0.0` and earlier) use OpenSSL 1.1.0g and are Intel-only on macOS.
 
 ---
 
@@ -34,11 +34,11 @@ Converts a PKCS#12 file (`.p12`, `.pfx`) into a PEM certificate and a PEM privat
 
 - **Failure is silent.** Neither command raises a 4D error or sets `OK`. When something goes wrong (wrong password, invalid data, unknown field name, …) the affected output parameters are returned as empty strings. Test the outputs with `Length` before using them.
 - **Private keys are returned unencrypted.** Both commands return the private key as a plain PEM block with no passphrase (`-----BEGIN RSA PRIVATE KEY-----`, PKCS#1, for an RSA key), even [P12 TO PEM](#p12-to-pem), where you pass a password. Treat the text like a password: don't log it, and protect any file you write it to.
-- **Key types.** [MAKE CERTIFICATE](#make-certificate) always creates an RSA key. [P12 TO PEM](#p12-to-pem) exports any key type (RSA, EC, Ed25519, …); see its description for the PEM format of each (after `2.0.0`; up to `2.0.0` it returned an empty key for anything but RSA).
+- **Key types.** [MAKE CERTIFICATE](#make-certificate) always creates an RSA key. [P12 TO PEM](#p12-to-pem) exports any key type (RSA, EC, Ed25519, …); see its description for the PEM format of each (from `2.1.0`; up to `2.0.0` it returned an empty key for anything but RSA).
 - **Legacy algorithms.** OpenSSL 3 moved old algorithms (MDC2, RC2, RC4, single DES, …) into its *legacy* provider. The plugin loads it at startup (built in, nothing to install), so the `MDC2` digest and PKCS#12 files encrypted with RC2 or RC4 (exported by older tools) still work.
 - **All parameters are mandatory.** There are no optional forms; pass a variable for every output parameter.
 - **Thread-safe.** Both commands are declared thread-safe in the plugin manifest and can be called from preemptive processes.
-- **Apple silicon.** Builds after `2.0.0` are universal (`arm64` + `x86_64`). The published `2.0.0` build contains an Intel (`x86_64`) binary only, so on Apple silicon it needs 4D running under Rosetta.
+- **Apple silicon.** Releases from `2.1.0` are universal (`arm64` + `x86_64`). The published `2.0.0` build contains an Intel (`x86_64`) binary only, so on Apple silicon it needs 4D running under Rosetta.
 
 ---
 
@@ -69,7 +69,7 @@ Both current PKCS#12 files (AES-256 + PBKDF2, the default of OpenSSL 3) and lega
 
 Any additional CA certificates stored in the PKCS#12 file are ignored; only the main certificate is returned.
 
-If the data can't be decoded or the password is wrong, both outputs are empty. If the file contains no certificate, `certificate` is empty; if it contains no key, `privateKey` is empty. (Up to `2.0.0`, those cases handed a missing object to OpenSSL instead of skipping it, a non-RSA key gave an empty `privateKey`, and every call leaked the decoded key and certificate; fixed after `2.0.0`.)
+If the data can't be decoded or the password is wrong, both outputs are empty. If the file contains no certificate, `certificate` is empty; if it contains no key, `privateKey` is empty. (Up to `2.0.0`, those cases handed a missing object to OpenSSL instead of skipping it, a non-RSA key gave an empty `privateKey`, and every call leaked the decoded key and certificate; fixed in `2.1.0`.)
 
 ### Example
 
@@ -140,12 +140,12 @@ Constants for `hash` (theme *Hashing Algorithm*):
 Details worth knowing:
 
 - **`hash`**: any value outside 0 to 7 falls back to SHA-256. Use `SHA256` or stronger; MD5 and SHA-1 signatures are rejected by current browsers and operating systems, and `MDC2` and `RIPEMD160` signatures are understood by very few programs.
-- **`length`**: 2048 or more is recommended. Key generation time grows quickly with the size. Values above 16384 return empty outputs without generating anything (fixed after `2.0.0`; up to `2.0.0` the process could stay busy for a very long time). OpenSSL 3 rejects sizes below 512 bits, which also leaves every output empty.
-- **`days`**: a value so large that the end date can't be represented returns an empty `certificate` (fixed after `2.0.0`; up to `2.0.0` the multiplication into seconds overflowed).
-- **`keys` / `values`**: the two arrays **must** have the same size; otherwise the subject is left empty, silently, and the request and certificate are still produced. Pairs are added in array order, **including element 0**; a pair whose key or value is empty is skipped, so an unused element 0 is harmless. Field names can be OpenSSL short names (`CN`), long names (`commonName`) or dotted OIDs; a pair with an unknown name, or with a value the field doesn't allow (for example a `C` that isn't two letters), is skipped silently. Values are passed to OpenSSL as UTF-8, so accented and non-Latin text (`東京都`) is stored correctly, as a `UTF8String` (after `2.0.0`; up to `2.0.0` values were passed as ASCII and non-ASCII text was garbled). Plain ASCII values are encoded as before.
+- **`length`**: 2048 or more is recommended. Key generation time grows quickly with the size. Values above 16384 return empty outputs without generating anything (fixed in `2.1.0`; up to `2.0.0` the process could stay busy for a very long time). OpenSSL 3 rejects sizes below 512 bits, which also leaves every output empty.
+- **`days`**: a value so large that the end date can't be represented returns an empty `certificate` (fixed in `2.1.0`; up to `2.0.0` the multiplication into seconds overflowed).
+- **`keys` / `values`**: the two arrays **must** have the same size; otherwise the subject is left empty, silently, and the request and certificate are still produced. Pairs are added in array order, **including element 0**; a pair whose key or value is empty is skipped, so an unused element 0 is harmless. Field names can be OpenSSL short names (`CN`), long names (`commonName`) or dotted OIDs; a pair with an unknown name, or with a value the field doesn't allow (for example a `C` that isn't two letters), is skipped silently. Values are passed to OpenSSL as UTF-8, so accented and non-Latin text (`東京都`) is stored correctly, as a `UTF8String` (from `2.1.0`; up to `2.0.0` values were passed as ASCII and non-ASCII text was garbled). Plain ASCII values are encoded as before.
 - **`certificate`** contains no X.509 extensions (no Subject Alternative Name, no basic constraints). Current browsers ignore the `CN` when they check the host name and require a Subject Alternative Name, so they reject this certificate for HTTPS even after you trust it. It is fine for testing 4D's own TLS setup and for clients that don't check the host name.
 - **`publicKey`** is a `-----BEGIN RSA PUBLIC KEY-----` block (PKCS#1), not the more common `-----BEGIN PUBLIC KEY-----` (SubjectPublicKeyInfo) form. **`privateKey`** is a `-----BEGIN RSA PRIVATE KEY-----` block without encryption.
-- **`request`** is a PKCS#10 version 1 request (version field `0`). Up to `2.0.0` the plugin wrote the invalid version value `1`, which OpenSSL 3 and some certificate authorities reject; fixed after `2.0.0`.
+- **`request`** is a PKCS#10 version 1 request (version field `0`). Up to `2.0.0` the plugin wrote the invalid version value `1`, which OpenSSL 3 and some certificate authorities reject; fixed in `2.1.0`.
 - If key generation or the request fails, all four outputs are empty. If only the certificate step fails, `certificate` is empty and the other three outputs are still returned.
 
 ### Example
